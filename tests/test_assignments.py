@@ -1,12 +1,34 @@
-from src.optimization.assignments import build_cost_matrix, assign_drivers
+import os
+import sys
 
-def test_assignments_shape():
-    # Minimal mock test for coverage
-    drivers = ['D1', 'D2']
-    zones = ['MG Road', 'Indiranagar']
-    forecast = {'MG Road': 100, 'Indiranagar': 200}
-    anomaly_flags = {'MG Road': 1, 'Indiranagar': 0}
-    driver_history = {'D1': {}, 'D2': {}}
-    eco_data = {('D1','MG Road'):{'distance_km':3}, ('D2','Indiranagar'):{'distance_km':5}}
-    assignments = assign_drivers(drivers, zones, forecast, anomaly_flags, driver_history, eco_data)
-    assert len(assignments) == 2
+# --- Ensure project root ('EquiRide-Surge-AI') is on sys.path ---
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+# --- Now safe to import your modules ---
+from src.optimization.assignments import assign_drivers
+from src.models.infer import get_forecast_outputs, get_zone_anomaly_flags
+from src.data.utils import (
+    get_current_available_drivers_mock as get_current_available_drivers,
+    get_driver_history_final as get_driver_history,
+    get_zone_eco_metrics_final as get_zone_eco_metrics,
+)
+
+def test_assign_drivers_pipeline():
+    forecast = get_forecast_outputs()
+    anomaly_flags = get_zone_anomaly_flags()
+    drivers = get_current_available_drivers()
+    hist = get_driver_history()
+    eco = get_zone_eco_metrics()
+
+    assignments = assign_drivers(
+        drivers,
+        list(forecast.keys()),
+        forecast,
+        anomaly_flags,
+        hist,
+        eco,
+    )
+
+    assert not assignments.empty, "Assignment output should not be empty"
+    assert {"driver_id", "assigned_zone"}.issubset(assignments.columns), \
+        "Output must include driver_id and assigned_zone"

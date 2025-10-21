@@ -1,11 +1,11 @@
 # Data Pipeline Configuration
 
 data:
-  input_csv: "cleaned_bangalore_traffic_wards.csv"
-  raw_data_path: "data/raw/"
-  processed_data_path: "data/processed/"
-  features_path: "data/features/"
-  feature_store_path: "data/feature_store/surge_features.db"
+  input_csv: "datasets/processed_data.csv"
+  raw_data_path: "datasets/"
+  processed_data_path: "datasets/"
+  features_path: "datasets/"
+  feature_store_path: "datasets/feature_store/surge_features.db"
 
 features:
   time_buckets_minutes: 15

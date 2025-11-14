@@ -1,4 +1,3 @@
-# src/data/utils.py
 import os
 import math
 import numpy as np
@@ -30,16 +29,14 @@ def haversine(lat1, lon1, lat2, lon2):
 
 
 def build_distance_matrix(drivers, zones_df):
-    """Compute D×Z distance matrix from driver positions to zone centroids.
-    drivers: list of dicts with keys 'id','lat','lon'
-    zones_df: DataFrame with columns ['zone','latitude','longitude'] (or similar)
+    """
+    Compute D×Z distance matrix from driver positions to zone centroids.
+    NOTE: Currently unused, as Eco-Metrics are simulated.
     """
     D, Z = len(drivers), len(zones_df)
     dist = np.zeros((D, Z), dtype=float)
     for i, d in enumerate(drivers):
         for j, z in enumerate(zones_df.itertuples(index=False)):
-            # zones_df expected to have attributes matching latitude/longitude names
-            # try common names
             lat_z = getattr(z, "latitude", None) or getattr(z, "lat", None) or getattr(z, "y", None)
             lon_z = getattr(z, "longitude", None) or getattr(z, "lon", None) or getattr(z, "x", None)
             if lat_z is None or lon_z is None:
@@ -50,27 +47,14 @@ def build_distance_matrix(drivers, zones_df):
 
 
 # ---------------------------
-# ECO and FAIRNESS UTILITIES
+# CORE INTERFACE FUNCTIONS (Used by assignments.py)
 # ---------------------------
-def estimate_eco_scores(distance_matrix, emission_factor=0.21):
-    """
-    Convert distances → eco scores (higher = better sustainability).
-    Smaller distances → higher eco score.
-    """
-    emissions = distance_matrix * emission_factor
-    eco = 1 / (1 + emissions)
-    return eco
-
-
-# ----------------------------------------
-# 1. Driver and Zone Data (Required by assignments.py)
-# ----------------------------------------
 
 def get_current_available_drivers() -> list[dict]:
     """
     [MEMBER 3's RESPONSIBILITY - SIMULATED]
     Fetches the current list of available drivers.
-    Simulated using the latest zone data.
+    Simulated using the latest zone data from the processed file.
     """
     processed_df = load_csv_data(PROCESSED_DATA_PATH, parse_dates=['Datetime'])
     if processed_df.empty:
@@ -91,97 +75,13 @@ def get_current_available_drivers() -> list[dict]:
             "id": f"D{i:03d}",
             "current_zone": zone,
             "vehicle_type": random.choice(["auto", "car"]),
+            # Add dummy lat/lon for distance calculation (if ever used)
+            "lat": np.random.uniform(12.9, 13.1), 
+            "lon": np.random.uniform(77.5, 77.7),
         })
     
     logger.info(f"Simulated {num_drivers} current available drivers.")
     return drivers
-
-def get_zone_eco_metrics_final() -> np.ndarray:
-    """
-    [MEMBER 3's RESPONSIBILITY - SIMULATED]
-    Fetches the driver-to-zone distance matrix for Eco/Distance calculation.
-    
-    NOTE: The current graph_edges.csv lacks distance/time, so this is SIMULATED.
-    """
-    drivers = get_current_available_drivers()
-    zones = get_target_zones()
-    n, m = len(drivers), len(zones)
-    
-    if n == 0 or m == 0:
-        return np.array([])
-    
-    # --- SIMULATION: REPLACE WITH LOOKUP FROM ENRICHED graph_edges.csv ---
-    # Create a distance matrix (km) between all drivers and all target zones
-    distance_matrix = np.random.uniform(1.0, 15.0, size=(n, m))
-    
-    # Ensure drivers already in the target zone have low distance (e.g., 0.1km)
-    driver_zone_map = {d["id"]: d["current_zone"] for d in drivers}
-    
-    for i in range(n):
-        for j in range(m):
-            if driver_zone_map.get(drivers[i]["id"]) == zones[j]:
-                distance_matrix[i, j] = 0.1 
-    
-    logger.info(f"Simulated Eco/Distance Matrix shape: {distance_matrix.shape}")
-    return distance_matrix
-
-
-
-# ---------------------------
-# COMPATIBILITY WRAPPERS (for assignments.py)
-# ---------------------------
-
-def get_driver_history_final() -> dict:
-    """
-    [MEMBER 3's RESPONSIBILITY - SIMULATED]
-    Fetches historical data per driver for the Fairness calculation.
-    """
-    drivers = get_current_available_drivers()
-    history = {}
-    
-    for driver in drivers:
-        # Key: driver_id. Value: Dictionary containing necessary history metrics.
-        history[driver["id"]] = {
-            # Simulate earnings for fairness score calculation
-            "earnings": np.random.normal(500.0, 200.0).clip(50.0), 
-            # Simulate recent surges handled for the complex fairness_score function
-            "recent_zone_surges": {
-                z: random.randint(0, 5) 
-                for z in random.sample(get_target_zones(), k=min(3, len(get_target_zones())))
-            }
-        }
-    logger.info("Simulated driver history for fairness calculation.")
-    return history
-
-
-def get_zone_eco_metrics_final():
-    """
-    Return eco_data as a numpy array (drivers x zones) when possible.
-    Fallbacks:
-      - If get_zone_eco_metrics() returns array -> pass through.
-      - If exception occurs -> return a ones matrix sized to (len(drivers), len(zones)).
-    """
-    try:
-        eco = get_zone_eco_metrics()
-        if isinstance(eco, np.ndarray):
-            return eco
-    except Exception:
-        pass
-
-    # Fallback: attempt to build a ones matrix sized to the drivers & zones used by pipeline
-    drivers = get_current_available_drivers()
-    # Try to read zones from CSV; if not available, use mock zones
-    dataset_path = "datasets/processed_data.csv"
-    if os.path.exists(dataset_path):
-        df = pd.read_csv(dataset_path)
-        if "Area Name" in df.columns:
-            zones = df["Area Name"].dropna().unique().tolist()
-        else:
-            zones = get_target_zones_mock()
-    else:
-        zones = get_target_zones_mock()
-
-    return np.ones((len(drivers), len(zones)), dtype=float)
 
 
 def get_target_zones() -> list[str]:
@@ -198,9 +98,62 @@ def get_target_zones() -> list[str]:
     zones = forecast_df['zone'].unique().tolist()
     logger.info(f"Identified {len(zones)} target zones from forecast.")
     return zones
-# ----------------------------------------
-# 3. Forecast Data (Input from Member 1's Model)
-# ----------------------------------------
+
+
+def get_driver_history_final() -> dict:
+    """
+    [MEMBER 3's RESPONSIBILITY - SIMULATED]
+    Fetches historical data per driver for the Fairness calculation.
+    """
+    drivers = get_current_available_drivers()
+    history = {}
+    
+    # We use the raw zone data to get all possible zones for simulation consistency
+    all_zones = get_target_zones()
+
+    for driver in drivers:
+        history[driver["id"]] = {
+            # Simulate earnings for fairness score calculation
+            "earnings": np.random.normal(500.0, 200.0).clip(50.0), 
+            # Simulate recent surges handled
+            "recent_zone_surges": {
+                z: random.randint(0, 5) 
+                for z in random.sample(all_zones, k=min(3, len(all_zones)))
+            }
+        }
+    logger.info("Simulated driver history for fairness calculation.")
+    return history
+
+
+def get_zone_eco_metrics_final() -> np.ndarray:
+    """
+    [MEMBER 3's RESPONSIBILITY - SIMULATED]
+    Fetches the driver-to-zone distance matrix (km) for Eco/Distance calculation.
+    
+    NOTE: This is SIMULATED because 'graph_edges.csv' only contains topology (src_zone, dst_zone),
+    not the actual distances/times needed for the cost matrix.
+    """
+    drivers = get_current_available_drivers()
+    zones = get_target_zones()
+    n, m = len(drivers), len(zones)
+    
+    if n == 0 or m == 0:
+        return np.array([])
+    
+    # --- SIMULATION: REPLACE WITH LOOKUP FROM ENRICHED graph_edges.csv ---
+    distance_matrix = np.random.uniform(1.0, 15.0, size=(n, m))
+    
+    # Ensure drivers already in the target zone have low distance (e.g., 0.1km)
+    driver_zone_map = {d["id"]: d["current_zone"] for d in drivers}
+    
+    for i in range(n):
+        for j in range(m):
+            if driver_zone_map.get(drivers[i]["id"]) == zones[j]:
+                distance_matrix[i, j] = 0.1 
+    
+    logger.info(f"Simulated Eco/Distance Matrix shape: {distance_matrix.shape}")
+    return distance_matrix
+
 
 def get_forecast_outputs() -> dict:
     """

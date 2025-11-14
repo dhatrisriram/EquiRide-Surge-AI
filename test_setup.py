@@ -32,7 +32,7 @@ required_files = [
     'src/alert_system.py',
     'src/utils.py',
     'orchestration/run_pipeline.py',
-    'cleaned_bangalore_traffic_wards.csv'
+    'Data_set.csv'
 ]
 
 all_exist = True
@@ -101,7 +101,7 @@ except Exception as e:
 print("\n[6/7] Checking input data...")
 try:
     import pandas as pd
-    df = pd.read_csv('cleaned_bangalore_traffic_wards.csv', nrows=5)
+    df = pd.read_csv('Data_set.csv', nrows=5)
     print(f"    ✓ Input CSV loaded")
     print(f"    • Columns: {len(df.columns)}")
     print(f"    • Sample rows: {len(df)}")

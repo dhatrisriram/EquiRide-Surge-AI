@@ -3,6 +3,17 @@ import os
 import math
 import numpy as np
 import pandas as pd
+import logging
+import random
+from src.utils import load_csv_data # Rely on the robust loader
+
+logger = logging.getLogger(__name__)
+
+# --- Data Source Paths (Centralized) ---
+PROCESSED_DATA_PATH = 'datasets/processed_data.csv'
+GRAPH_EDGES_PATH = 'datasets/graph_edges.csv'
+FORECAST_FILE = 'datasets/forecast_15min_predictions.csv' 
+
 
 EARTH_RADIUS_KM = 6371.0
 
@@ -51,111 +62,96 @@ def estimate_eco_scores(distance_matrix, emission_factor=0.21):
     return eco
 
 
-# ---------------------------
-# MOCK / STATIC DATA
-# ---------------------------
-def get_current_available_drivers_mock():
-    """Mock: list of driver dicts"""
-    return [
-        {"id": "D1", "lat": 12.92, "lon": 77.64},
-        {"id": "D2", "lat": 12.93, "lon": 77.63},
-    ]
+# ----------------------------------------
+# 1. Driver and Zone Data (Required by assignments.py)
+# ----------------------------------------
 
+def get_current_available_drivers() -> list[dict]:
+    """
+    [MEMBER 3's RESPONSIBILITY - SIMULATED]
+    Fetches the current list of available drivers.
+    Simulated using the latest zone data.
+    """
+    processed_df = load_csv_data(PROCESSED_DATA_PATH, parse_dates=['Datetime'])
+    if processed_df.empty:
+        logger.error("Processed data empty. Cannot simulate drivers.")
+        return []
 
-def get_target_zones_mock():
-    return ["MG Road", "Indiranagar"]
-
-
-def get_driver_history_mock():
-    """Mock nested structure used by older fairness logic."""
-    return {
-        "D1": {"recent_zone_surges": {"MG Road": 2, "Indiranagar": 0}},
-        "D2": {"recent_zone_surges": {"MG Road": 1, "Indiranagar": 3}},
-    }
-
-
-def get_zone_eco_metrics_mock():
-    """Mock dict (legacy fallback)."""
-    return {
-        ("D1", "MG Road"): {"distance_km": 2.1},
-        ("D1", "Indiranagar"): {"distance_km": 2.4},
-        ("D2", "MG Road"): {"distance_km": 3.5},
-        ("D2", "Indiranagar"): {"distance_km": 1.9},
-    }
-
-
-# ---------------------------
-# REAL (DATA-DRIVEN) FUNCTIONS
-# ---------------------------
-def get_current_available_drivers(n=5):
-    """Simulate current drivers with random GPS coords (for testing)."""
-    np.random.seed(42)
+    # Use the unique zones from the latest time step
+    latest_time_df = processed_df[processed_df['Datetime'] == processed_df['Datetime'].max()]
+    available_zones = latest_time_df['zone'].unique()
+    
+    num_drivers = 100
     drivers = []
-    for i in range(n):
-        drivers.append(
-            {
-                "id": f"driver_{i+1}",
-                "lat": 12.90 + np.random.uniform(0, 0.05),
-                "lon": 77.60 + np.random.uniform(0, 0.05),
-            }
-        )
+    
+    for i in range(num_drivers):
+        # Simulate driver location and type
+        zone = random.choice(available_zones) if available_zones.size > 0 else "unknown"
+        drivers.append({
+            "id": f"D{i:03d}",
+            "current_zone": zone,
+            "vehicle_type": random.choice(["auto", "car"]),
+        })
+    
+    logger.info(f"Simulated {num_drivers} current available drivers.")
     return drivers
 
-
-def get_zone_eco_metrics():
+def get_zone_eco_metrics_final() -> np.ndarray:
     """
-    Build and return a driver×zone distance matrix (numpy array).
-    - Loads zones from datasets/processed_data.csv (Area Name, latitude, longitude).
-    - Builds a drivers list using get_current_available_drivers() (same default n as pipeline).
-    Returns: np.ndarray shape (len(drivers), len(zones))
+    [MEMBER 3's RESPONSIBILITY - SIMULATED]
+    Fetches the driver-to-zone distance matrix for Eco/Distance calculation.
+    
+    NOTE: The current graph_edges.csv lacks distance/time, so this is SIMULATED.
     """
-    dataset_path = "datasets/processed_data.csv"
-    # If dataset missing, return a small default matrix to avoid crashes
-    if not os.path.exists(dataset_path):
-        # fallback: create small matrix using mock drivers and mock zones
-        drivers = get_current_available_drivers_mock()
-        zones = get_target_zones_mock()
-        return np.ones((len(drivers), len(zones)), dtype=float)
+    drivers = get_current_available_drivers()
+    zones = get_target_zones()
+    n, m = len(drivers), len(zones)
+    
+    if n == 0 or m == 0:
+        return np.array([])
+    
+    # --- SIMULATION: REPLACE WITH LOOKUP FROM ENRICHED graph_edges.csv ---
+    # Create a distance matrix (km) between all drivers and all target zones
+    distance_matrix = np.random.uniform(1.0, 15.0, size=(n, m))
+    
+    # Ensure drivers already in the target zone have low distance (e.g., 0.1km)
+    driver_zone_map = {d["id"]: d["current_zone"] for d in drivers}
+    
+    for i in range(n):
+        for j in range(m):
+            if driver_zone_map.get(drivers[i]["id"]) == zones[j]:
+                distance_matrix[i, j] = 0.1 
+    
+    logger.info(f"Simulated Eco/Distance Matrix shape: {distance_matrix.shape}")
+    return distance_matrix
 
-    df = pd.read_csv(dataset_path)
-    if "Area Name" not in df.columns or "latitude" not in df.columns or "longitude" not in df.columns:
-        # fallback
-        drivers = get_current_available_drivers_mock()
-        zones = get_target_zones_mock()
-        return np.ones((len(drivers), len(zones)), dtype=float)
-
-    # zones DataFrame with lat/lon
-    zones_df = df[["Area Name", "latitude", "longitude"]].drop_duplicates()
-    zones_df = zones_df.rename(columns={"Area Name": "zone", "latitude": "latitude", "longitude": "longitude"})
-    # Build drivers using same source as pipeline (no n passed so defaults match)
-    drivers = get_current_available_drivers()  # important: uses same default n
-    # Compute distances
-    dist_matrix = build_distance_matrix(drivers, zones_df)
-    # Return raw distances (in km). Caller can convert to emissions/eco if needed.
-    return dist_matrix
 
 
 # ---------------------------
 # COMPATIBILITY WRAPPERS (for assignments.py)
 # ---------------------------
-def get_driver_history_final():
+
+def get_driver_history_final() -> dict:
     """
-    Return driver history in the form expected by downstream code.
-    If a DataFrame is available, convert to nested dict with 'recent_zone_surges' placeholder.
-    Otherwise return mock.
+    [MEMBER 3's RESPONSIBILITY - SIMULATED]
+    Fetches historical data per driver for the Fairness calculation.
     """
-    # try a real DF source if present on your pipeline (this function can be adapted)
-    try:
-        # sample attempt to read a real source; if not available, fallback
-        # keep simple: simulate the DF and convert to nested structure
-        df = pd.DataFrame({"driver_id": [f"driver_{i+1}" for i in range(5)], "earnings": np.random.randint(200, 800, 5)})
-        history = {}
-        for _, row in df.iterrows():
-            # preserve the nested recent_zone_surges structure for compatibility
-            history[row["driver_id"]] = {"recent_zone_surges": {}}
-        return history
-    except Exception:
-        return get_driver_history_mock()
+    drivers = get_current_available_drivers()
+    history = {}
+    
+    for driver in drivers:
+        # Key: driver_id. Value: Dictionary containing necessary history metrics.
+        history[driver["id"]] = {
+            # Simulate earnings for fairness score calculation
+            "earnings": np.random.normal(500.0, 200.0).clip(50.0), 
+            # Simulate recent surges handled for the complex fairness_score function
+            "recent_zone_surges": {
+                z: random.randint(0, 5) 
+                for z in random.sample(get_target_zones(), k=min(3, len(get_target_zones())))
+            }
+        }
+    logger.info("Simulated driver history for fairness calculation.")
+    return history
 
 
 def get_zone_eco_metrics_final():
@@ -188,12 +184,49 @@ def get_zone_eco_metrics_final():
     return np.ones((len(drivers), len(zones)), dtype=float)
 
 
-def get_target_zones():
-    """Return list of zones; prefer CSV, fallback to mock."""
-    dataset_path = "datasets/processed_data.csv"
-    if not os.path.exists(dataset_path):
-        return get_target_zones_mock()
-    df = pd.read_csv(dataset_path)
-    if "Area Name" not in df.columns:
-        return get_target_zones_mock()
-    return df["Area Name"].dropna().unique().tolist()
+def get_target_zones() -> list[str]:
+    """
+    [MEMBER 3's RESPONSIBILITY - IMPLEMENTED]
+    Fetches the list of zones that require prediction/repositioning.
+    We get this from the zones present in the latest forecast file.
+    """
+    forecast_df = load_csv_data(FORECAST_FILE)
+    if forecast_df.empty:
+        logger.warning(f"Forecast file {FORECAST_FILE} empty. No target zones available.")
+        return []
+    
+    zones = forecast_df['zone'].unique().tolist()
+    logger.info(f"Identified {len(zones)} target zones from forecast.")
+    return zones
+# ----------------------------------------
+# 3. Forecast Data (Input from Member 1's Model)
+# ----------------------------------------
+
+def get_forecast_outputs() -> dict:
+    """
+    [MEMBER 1's HAND-OFF - IMPLEMENTED]
+    Fetches the predicted bookings/demand from the CSV generated by infer.py.
+    """
+    forecast_df = load_csv_data(FORECAST_FILE)
+    if forecast_df.empty:
+        logger.error("Forecast output is missing or empty. Returning empty dict.")
+        return {}
+    
+    # The expected column is 'pred_bookings_15min' (output of GNN/LSTM/TFT)
+    forecast_map = forecast_df.set_index('zone')['pred_bookings_15min'].to_dict()
+    logger.info(f"Successfully loaded {len(forecast_map)} forecast values.")
+    return forecast_map
+
+def get_zone_anomaly_flags() -> dict:
+    """
+    [MEMBER 1's HAND-OFF - SIMULATED]
+    Fetches anomaly/event flags (e.g., from Member 3's event integration).
+    """
+    zones = get_target_zones()
+    # Simulate a few zones having an event/anomaly
+    anomaly_flags = {
+        z: random.choice([0, 0, 0, 1]) # 25% chance of flag
+        for z in zones
+    }
+    logger.info(f"Simulated anomaly flags for {len(zones)} zones.")
+    return anomaly_flags

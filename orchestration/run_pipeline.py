@@ -38,8 +38,7 @@ def run_complete_pipeline(config_path='config/config.yaml'):
     
     logger.info("")
     logger.info("="*80)
-    logger.info("      NAMMA YATRI - PREDICTIVE SURGE FORECASTING SYSTEM")
-    logger.info("                 Bhumika: DATA PIPELINE")
+    logger.info("      EQUI-RIDE SURGE AI   ")
     logger.info("="*80)
     logger.info(f"Pipeline started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info("="*80)

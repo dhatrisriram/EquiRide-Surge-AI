@@ -107,7 +107,14 @@ class DataCleaner:
         try:
             log_stage(self.logger, 'PARSE_DATETIME', 'START')
             
-            df[date_col] = pd.to_datetime(df[date_col])
+            df[date_col] = pd.to_datetime(df[date_col], dayfirst=True, errors='coerce')
+
+            # Drop or handle unparsable rows if any
+            invalid_dates = df[date_col].isna().sum()
+            if invalid_dates > 0:
+                self.logger.warning(f"[PARSE_DATETIME] {invalid_dates} invalid dates found; dropping them.")
+                df = df.dropna(subset=[date_col])
+
             df['year'] = df[date_col].dt.year
             df['month'] = df[date_col].dt.month
             df['day'] = df[date_col].dt.day

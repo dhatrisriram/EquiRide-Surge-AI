@@ -12,7 +12,45 @@ import yaml
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
+import logging
 
+# Set up logging for module
+logger = logging.getLogger(__name__)
+
+def load_config(config_path="config/config.yaml"):
+    """Loads the YAML configuration file."""
+    try:
+        with open(config_path, 'r') as f:
+            return yaml.safe_load(f)
+    except FileNotFoundError:
+        logger.error(f"Config file not found at {config_path}")
+        return {}
+    except yaml.YAMLError as exc:
+        logger.error(f"Error parsing YAML config: {exc}")
+        return {}
+
+def load_csv_data(filepath, index_col=None, parse_dates=False):
+    """
+    Loads data from a CSV file, handling common errors.
+    
+    Args:
+        filepath (str): The path to the CSV file.
+        index_col (str, optional): Column to set as index. Defaults to None.
+        parse_dates (list/bool, optional): Columns to parse as dates. Defaults to False.
+        
+    Returns:
+        pd.DataFrame: The loaded DataFrame, or an empty DataFrame on error.
+    """
+    try:
+        df = pd.read_csv(filepath, index_col=index_col, parse_dates=parse_dates)
+        logger.info(f"Successfully loaded data from: {filepath} with {len(df)} rows.")
+        return df
+    except FileNotFoundError:
+        logger.error(f"Data file not found at: {filepath}. Returning empty DataFrame.")
+        return pd.DataFrame()
+    except Exception as e:
+        logger.error(f"An error occurred while loading {filepath}: {e}")
+        return pd.DataFrame()
 # =====================================================================
 # 🧩 CONFIG & FILE UTILITIES
 # =====================================================================

@@ -56,14 +56,14 @@ def get_current_available_drivers() -> list[dict]:
     Fetches the current list of available drivers.
     Simulated using the latest zone data from the processed file.
     """
-    processed_df = load_csv_data(PROCESSED_DATA_PATH, parse_dates=['Datetime'])
+    processed_df = load_csv_data(PROCESSED_DATA_PATH, parse_dates=['timestamp'])
     if processed_df.empty:
         logger.error("Processed data empty. Cannot simulate drivers.")
         return []
 
     # Use the unique zones from the latest time step
-    latest_time_df = processed_df[processed_df['Datetime'] == processed_df['Datetime'].max()]
-    available_zones = latest_time_df['zone'].unique()
+    latest_time_df = processed_df[processed_df['timestamp'] == processed_df['timestamp'].max()]
+    available_zones = latest_time_df['h3_index'].unique()
     
     num_drivers = 100
     drivers = []
@@ -95,7 +95,7 @@ def get_target_zones() -> list[str]:
         logger.warning(f"Forecast file {FORECAST_FILE} empty. No target zones available.")
         return []
     
-    zones = forecast_df['zone'].unique().tolist()
+    zones = forecast_df['h3_index'].unique().tolist()
     logger.info(f"Identified {len(zones)} target zones from forecast.")
     return zones
 
@@ -114,7 +114,7 @@ def get_driver_history_final() -> dict:
     for driver in drivers:
         history[driver["id"]] = {
             # Simulate earnings for fairness score calculation
-            "earnings": np.random.normal(500.0, 200.0).clip(50.0), 
+            "earnings": np.random.normal(500.0, 200.0), 
             # Simulate recent surges handled
             "recent_zone_surges": {
                 z: random.randint(0, 5) 
@@ -166,7 +166,7 @@ def get_forecast_outputs() -> dict:
         return {}
     
     # The expected column is 'pred_bookings_15min' (output of GNN/LSTM/TFT)
-    forecast_map = forecast_df.set_index('zone')['pred_bookings_15min'].to_dict()
+    forecast_map = forecast_df.set_index('h3_index')['pred_bookings_15min'].to_dict()
     logger.info(f"Successfully loaded {len(forecast_map)} forecast values.")
     return forecast_map
 

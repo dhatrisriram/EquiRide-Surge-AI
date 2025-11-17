@@ -23,7 +23,7 @@ class FeatureEngineer:
         try:
             log_stage(self.logger, 'LOAD_PROCESSED', 'START')
             df = pd.read_csv(file_path)
-            df['Date'] = pd.to_datetime(df['Date'])
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
             log_stage(self.logger, 'LOAD_PROCESSED', 'SUCCESS', rows=len(df))
             return df
         except Exception as e:

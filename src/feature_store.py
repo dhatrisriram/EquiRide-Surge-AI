@@ -122,7 +122,7 @@ class FeatureStore:
             
             # Select columns to insert
             insert_cols = [
-                'h3_index', 'Date', 'time_bucket', 'Area Name', 'Ward',
+                'h3_index', 'timestamp', 'time_bucket', 'Area Name', 'Ward',
                 'Traffic Volume', 'Average Speed', 'Congestion Level',
                 'Searches', 'Completed Trips', 'Bookings',
                 'demand_supply_ratio', 'booking_success_rate', 'congestion_change',
@@ -137,7 +137,7 @@ class FeatureStore:
             
             # Rename columns to match table schema
             column_mapping = {
-                'Date': 'date',
+                'timestamp': 'date',
                 'Area Name': 'area_name',
                 'Ward': 'ward',
                 'Traffic Volume': 'traffic_volume',

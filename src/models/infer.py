@@ -77,7 +77,7 @@ def infer_predictions(features_path=FEATURES_PATH, output_path=MODEL_PREDICTIONS
     logger.info(f"Starting inference using features from {features_path}...")
     
     # 1. Load Features (Assuming Member 3 has generated features)
-    feature_df = load_csv_data(features_path, parse_dates=['Datetime'])
+    feature_df = load_csv_data(features_path, parse_dates=['timestamp'])
     if feature_df.empty:
         logger.error("Feature data is empty. Cannot run inference.")
         # Ensure an empty file is created so the pipeline doesn't crash
@@ -87,17 +87,17 @@ def infer_predictions(features_path=FEATURES_PATH, output_path=MODEL_PREDICTIONS
     # --- TEMPORARY SIMULATION LOGIC: MUST BE REPLACED BY MEMBER 1 (HARSHINI) ---
     # This simulation mimics the GNN/LSTM/TFT predicting demand ('pred_bookings_15min').
     
-    last_time = feature_df['Datetime'].max()
+    last_time = feature_df['timestamp'].max()
     next_time = last_time + pd.Timedelta(minutes=15)
     
     # Get the zones that need a prediction
-    zones = feature_df[feature_df['Datetime'] == last_time]['zone'].unique()
+    zones = feature_df['h3_index'].unique()
     
     # Generate mock predictions (based on recent completed bookings)
-    recent_bookings = feature_df.groupby('zone')['Bookings'].last()
+    recent_bookings = feature_df.groupby('h3_index')['Bookings'].last()
     
     mock_predictions = pd.DataFrame({
-        'zone': zones,
+        'h3_index': zones,
         'next_time': next_time,
         # Simulate predictions: 10% variation on the last recorded booking value
         'pred_bookings_15min': recent_bookings.loc[zones].values * np.random.uniform(0.9, 1.1, size=len(zones))
@@ -106,7 +106,7 @@ def infer_predictions(features_path=FEATURES_PATH, output_path=MODEL_PREDICTIONS
     # --- END OF TEMPORARY SIMULATION LOGIC ---
     
     # 2. Save Output in the standard format for Member 2
-    mock_predictions = mock_predictions[['zone', 'next_time', 'pred_bookings_15min']].fillna(0)
+    mock_predictions = mock_predictions[['h3_index', 'next_time', 'pred_bookings_15min']].fillna(0)
     mock_predictions.to_csv(output_path, index=False)
     logger.info(f"Inference complete. Predictions saved for {len(mock_predictions)} zones to {output_path}")
     

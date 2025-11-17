@@ -8,8 +8,9 @@ from src.data.utils import (
     get_zone_eco_metrics_final as get_zone_eco_metrics,
     get_current_available_drivers,
     get_target_zones,
-)
-from src.models.infer import get_forecast_outputs, get_zone_anomaly_flags
+    get_forecast_outputs,
+    get_zone_anomaly_flags
+    )
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)

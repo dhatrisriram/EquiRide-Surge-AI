@@ -126,6 +126,8 @@ class DataCleaner:
             bucket_min = self.config['features']['time_buckets_minutes']
             df['time_bucket'] = df[date_col].dt.floor(f'{bucket_min}T')
             
+            df = df.rename(columns={'Date': 'timestamp'})
+
             log_stage(self.logger, 'PARSE_DATETIME', 'SUCCESS')
             return df
         except Exception as e:
@@ -156,7 +158,7 @@ class DataCleaner:
             df['h3_index'] = df['h3_index'].astype(str)
             
             # Sort by h3_index and time
-            df = df.sort_values(['h3_index', 'Date']).reset_index(drop=True)
+            df = df.sort_values(['h3_index', 'timestamp']).reset_index(drop=True)
             
             log_stage(self.logger, 'ALIGN_SPATIAL_TEMPORAL', 'SUCCESS')
             return df

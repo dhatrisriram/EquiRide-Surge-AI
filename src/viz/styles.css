@@ -1,0 +1,27 @@
+/* src/viz/styles.css */
+.block-container {
+    background: linear-gradient(180deg,#0b0820 0%, #13082f 100%);
+    color: #efeefe;
+}
+
+.banner {
+    background: linear-gradient(90deg,#6e2aff,#b985ff);
+    border-radius: 12px;
+    padding: 18px;
+    text-align: center;
+    color: white;
+    box-shadow: 0 8px 26px rgba(110,42,255,0.18);
+    margin-bottom: 12px;
+}
+
+.card {
+    background: rgba(255,255,255,0.03);
+    padding: 12px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+}
+
+.small-muted {
+    color: rgba(255,255,255,0.7);
+    font-size: 13px;
+}

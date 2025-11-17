@@ -1,10 +1,10 @@
 # Data Pipeline Configuration
 
 data:
-  input_csv: "Data_set.csv"
+  input_csv: "datasets/Data_set.csv"
   raw_data_path: "data/raw/"
-  processed_data_path: "data/processed/"
-  features_path: "data/features/"
+  processed_data_path: "datasets"
+  features_path: "datasets"
   feature_store_path: "data/feature_store/surge_features.db"
 
 features:
